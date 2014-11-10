@@ -18,7 +18,7 @@
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
 
-import sys
+import sys, simplejson as json
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -30,22 +30,46 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                                        listenWS
 
 
+class Message(object):
+   def __init__(self, payload = None, data = None, method = None):
+      super(Message, self).__init__()
+      if payload is None:
+         self.data = data
+         self.method = method
+      else:
+         self.__dict__ = json.loads(payload)
+
+   def as_json(self):
+      return json.dumps(self.__dict__)
+
+   @property
+   def is_login(self):
+      return self.method == "login"
+
+   @property
+   def is_chat(self):
+      return self.method == "chat"
+
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
-   def sendMessage(self, message):
-      print "sending message {}".format(message)
-      WebSocketServerProtocol.sendMessage(self, message)
+   def sendMessage(self, data, method = "chat"):
+      # print "sending chat message {}".format(data)
+      msg = Message(data = data, method = method)
+      WebSocketServerProtocol.sendMessage(self, msg.as_json())
 
    def onOpen(self):
       self.factory.register(self)
 
    def onMessage(self, payload, isBinary):
-      if not self.factory.logged_in(self):
-         self.factory.login(self, payload)
+      if isBinary: raise NotImplemented("Binary content is not supported!")
+      m = Message(payload = payload)
+
+      if m.is_login and not self.factory.logged_in(self):
+         self.factory.login(self, m.data)
          print("user {} logged in".format(payload))
-      else:
-         if not isBinary:
-            self.factory.broadcast(payload.decode('utf8'), self)
+
+      elif m.is_chat:
+         self.factory.broadcast(m.data, self)
 
 
    def onClose(self, wasClean, code, reason):
@@ -72,8 +96,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
       return client in self.usernames
 
    def login(self, client, username):
+      if username in self.usernames.values():
+         client.sendMessage("Username already in use!", method = "login")
+         return
+
       self.usernames[client] = username
-      client.sendMessage("OK")
+      client.sendMessage("OK", method = "login")
       for c in self.get_clients(client):
          c.sendMessage("%s logged in!" %(self.username(client)))
 
@@ -104,10 +132,11 @@ class BroadcastServerFactory(WebSocketServerFactory):
          print("client {} was not yet registered!".format(client.peer))
 
    def broadcast(self, msg, client):
-      print("broadcasting message '{}' ...".format(msg))
+      # print("broadcasting message '{}' ...".format(msg))
       for c in self.get_clients():
-         c.sendMessage("%s: %s" %(self.username(client), msg.encode('utf8')))
+         c.sendMessage("%s: %s" %(self.username(client), msg))
          print("message sent to {}".format(c.peer))
+
 
 if __name__ == '__main__':
 
