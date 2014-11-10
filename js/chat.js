@@ -42,7 +42,6 @@ function connect() {
 }
 
 $("#btn_chat").click(function() {
-   console.log($('#message'), $('#message').bbcode());
    send($('#message').bbcode(), "chat");
 });
 

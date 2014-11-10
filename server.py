@@ -31,7 +31,11 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
 
 from contextpy import layer, base, around, activelayer, proceed
 
-nobbcode = layer("No BBCode")
+bbcode = layer("BBCode")
+
+ALL_LAYERS = {
+   "bbcode": bbcode
+}
 
 class Message(object):
    def __init__(self, payload = None, data = None, method = None):
@@ -50,18 +54,26 @@ class Message(object):
       return self.method == "login"
 
    @property
+   def is_activate_layer(self):
+      return self.method == "activatelayer"
+
+   @property
+   def is_deactivate_layer(self):
+      return self.method == "deactivatelayer"
+
+   @property
    def is_chat(self):
       return self.method == "chat"
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
-   @base
+   @around(bbcode)
    def createMessage(self, data, method):
       return Message(data = data, method = method)
 
-   @around(nobbcode)
+   @base
    def createMessage(self, data, method):
-      return Message(data = re.sub(r'\[[\/\w\s]*\]\n{0,1}', "", data), method = method)
+      return Message(data = re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data), method = method)
 
 
    def sendMessage(self, data, method = "chat"):
@@ -83,6 +95,12 @@ class BroadcastServerProtocol(WebSocketServerProtocol):
       elif m.is_chat:
          self.factory.broadcast(m.data, self)
 
+      elif m.is_activate_layer:
+         self.factory.activate_layer(m.data, self)
+
+      elif m.is_deactivate_layer:
+         self.factory.deactivate_layer(m.data, self)
+
 
    def onClose(self, wasClean, code, reason):
       self.factory.logout(self)
@@ -99,10 +117,22 @@ class BroadcastServerFactory(WebSocketServerFactory):
    """
 
    usernames = {}
+   layers = {}
 
    def __init__(self, url, debug = False, debugCodePaths = False):
       WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
       self.clients = set()
+
+   def activate_layer(self, layer, client):
+      self.layers[client] = ALL_LAYERS.get(layer)
+
+   def deactivate_layer(self, layer, client):
+      try:
+         assert self.layers.pop(client) == ALL_LAYERS.get(layer)
+      except AssertionError, e:
+         print("active layers have not matched!")
+      except KeyError, e:
+         print("no layers found for the client!")
 
    def logged_in(self, client):
       return client in self.usernames
@@ -114,12 +144,12 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
       self.usernames[client] = username
       client.sendMessage("OK", method = "login")
-      for c in self.get_clients(client):
+      for c, layer in self.get_clients(client):
          c.sendMessage("%s logged in!" %(self.username(client)))
 
    def logout(self, client):
       username = self.usernames.pop(client)
-      for c in self.get_clients(client):
+      for c, layer in self.get_clients(client):
          c.sendMessage("%s logged out!" %(username))
 
    def username(self, client, default = "Anonymous"):
@@ -134,7 +164,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
       #for c in self.clients:
       for c in self.usernames.keys():
          if exclude is None or exclude != c:
-            yield c, nobbcode
+            yield c, self.layers.get(c)
 
    def unregister(self, client):
       try:

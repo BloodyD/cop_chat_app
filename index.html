@@ -17,21 +17,24 @@
 
       <pre id="log"></pre>
       <!-- <div id="bbcode-display"></div> -->
-      <form id="chat_form" method>
-         <p id="chat">
-            Message:
+      <div id="chat">
+         <p>
             <textarea id="message"></textarea>
-            <button type="button" id="btn_chat">Send</button></p>
-         <p id="login">
-            <input id="username" type="text" size="50" maxlength="50" value="Enter your name here">
-            <button type="button" id="btn_login">Login</button>
+            <input type="button" id="btn_chat" value="Send"/>
+         </p>
+         <p>
+            <input type="checkbox" id="bbcode_layer">
+            <label for="bbcode_layer">Enable BBCode</label>
+         </p>
+      </div>
+      <p id="login">
+         <input id="username" type="text" size="50" maxlength="50" value="Enter your name here">
+         <input type="button" id="btn_login" value="Login"/>
       </p>
-      </form>
-
-
 
       <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
       <script src="http://localhost:8080/js/chat.js"></script>
+      <script src="http://localhost:8080/js/layers.js"></script>
       <script src="http://localhost:8080/js/jquery.wysibb.min.js"></script>
       <link rel="stylesheet" href="http://localhost:8080/css/wbbtheme.css" />
 
