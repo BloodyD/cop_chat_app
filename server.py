@@ -18,7 +18,7 @@
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
 
-import sys, simplejson as json
+import sys, simplejson as json, re
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -29,6 +29,9 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                                        WebSocketServerProtocol, \
                                        listenWS
 
+from contextpy import layer, base, around, activelayer, proceed
+
+nobbcode = layer("No BBCode")
 
 class Message(object):
    def __init__(self, payload = None, data = None, method = None):
@@ -52,9 +55,18 @@ class Message(object):
 
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
+   @base
+   def createMessage(self, data, method):
+      return Message(data = data, method = method)
+
+   @around(nobbcode)
+   def createMessage(self, data, method):
+      return Message(data = re.sub(r'\[[\/\w\s]*\]\n{0,1}', "", data), method = method)
+
+
    def sendMessage(self, data, method = "chat"):
       # print "sending chat message {}".format(data)
-      msg = Message(data = data, method = method)
+      msg = self.createMessage(data, method)
       WebSocketServerProtocol.sendMessage(self, msg.as_json())
 
    def onOpen(self):
@@ -122,7 +134,7 @@ class BroadcastServerFactory(WebSocketServerFactory):
       #for c in self.clients:
       for c in self.usernames.keys():
          if exclude is None or exclude != c:
-            yield c
+            yield c, nobbcode
 
    def unregister(self, client):
       try:
@@ -133,8 +145,9 @@ class BroadcastServerFactory(WebSocketServerFactory):
 
    def broadcast(self, msg, client):
       # print("broadcasting message '{}' ...".format(msg))
-      for c in self.get_clients():
-         c.sendMessage("%s: %s" %(self.username(client), msg))
+      for c, layer in self.get_clients():
+         with activelayer(layer):
+            c.sendMessage("%s: %s" %(self.username(client), msg))
          print("message sent to {}".format(c.peer))
 
 
