@@ -1,21 +1,30 @@
 <!DOCTYPE html>
 <html>
    <head>
+   </head>
+   <body>
+      <h1>Autobahn WebSocket Chat Demo</h1>
+      <noscript>You must enable JavaScript</noscript>
+      <form id="chat_form" method>
+         <p id="chat">
+            Message:
+            <input id="message" type="text" size="50" maxlength="50" value="Hello from Browser!">
+            <button type="button" id="btn_chat">Broadcast Message</button></p>
+         <p id="login">
+            <input id="username" type="text" size="50" maxlength="50" value="Enter your name here">
+            <button type="button" id="btn_login">Login</button>
+      </p>
+      </form>
+
+      <pre id="log" style="height: 20em; overflow-y: scroll; background-color: #faa;"></pre>
+
+      <script src="http://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+
       <script type="text/javascript">
          var sock = null;
-         var ellog = null;
-
-         window.onload = function() {
-
-            var wsuri;
-            ellog = document.getElementById('log');
-
-            if (window.location.protocol === "file:") {
-               wsuri = "ws://localhost:9000";
-            } else {
-               wsuri = "ws://" + window.location.hostname + ":9000";
-            }
-
+         var ellog = document.getElementById('log');
+         var wsuri = "ws://localhost:9000";
+         $(function () {
             if ("WebSocket" in window) {
                sock = new WebSocket(wsuri);
             } else if ("MozWebSocket" in window) {
@@ -24,7 +33,6 @@
                log("Browser does not support WebSocket!");
                window.location = "http://autobahn.ws/unsupportedbrowser";
             }
-
             if (sock) {
                sock.onopen = function() {
                   log("Connected to " + wsuri);
@@ -36,19 +44,50 @@
                }
 
                sock.onmessage = function(e) {
-                  log("Got echo: " + e.data);
+                  if(e.data.indexOf("OK") != -1){
+                     enable_chat();
+                     log("You are logged in!")
+                  } else {
+                     log(e.data);
+                  }
                }
             }
+            disable_chat();
+         });
+
+         $("#btn_chat").click(function() {
+            send($('#message').val());
+         });
+
+         $("#btn_login").click(function() {
+            send($('#username').val());
+         });
+
+         function enable_chat(){
+            $('#chat').show();
+            $('#login').hide();
          };
 
-         function broadcast() {
-            var msg = document.getElementById('message').value;
+
+         function disable_chat(){
+            $('#login').show();
+            $('#chat').hide();
+         };
+
+         function send(msg){
             if (sock) {
                sock.send(msg);
-               log("Sent: " + msg);
+               //log("Sent: " + msg);
             } else {
                log("Not connected.");
             }
+         };
+
+         function login() {
+            send(document.getElementById('username').value);
+         };
+
+         function broadcast() {
          };
 
          function log(m) {
@@ -56,14 +95,5 @@
             ellog.scrollTop = ellog.scrollHeight;
          };
       </script>
-   </head>
-   <body>
-      <h1>Autobahn WebSocket Broadcast Demo</h1>
-      <noscript>You must enable JavaScript</noscript>
-      <form>
-         <p>Broadcast Message: <input id="message" type="text" size="50" maxlength="50" value="Hello from Browser!"></p>
-      </form>
-      <button onclick='broadcast();'>Broadcast Message</button>
-      <pre id="log" style="height: 20em; overflow-y: scroll; background-color: #faa;"></pre>
    </body>
 </html>

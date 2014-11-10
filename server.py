@@ -33,16 +33,23 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
 class BroadcastServerProtocol(WebSocketServerProtocol):
 
    def sendMessage(self, message):
-      print "got message"
+      print "sending message {}".format(message)
       WebSocketServerProtocol.sendMessage(self, message)
 
    def onOpen(self):
       self.factory.register(self)
 
    def onMessage(self, payload, isBinary):
-      if not isBinary:
-         msg = "{} from {}".format(payload.decode('utf8'), self.peer)
-         self.factory.broadcast(msg)
+      if not self.factory.logged_in(self):
+         self.factory.login(self, payload)
+         print("user {} logged in".format(payload))
+      else:
+         if not isBinary:
+            self.factory.broadcast(payload.decode('utf8'), self)
+
+
+   def onClose(self, wasClean, code, reason):
+      self.factory.logout(self)
 
    def connectionLost(self, reason):
       WebSocketServerProtocol.connectionLost(self, reason)
@@ -55,13 +62,39 @@ class BroadcastServerFactory(WebSocketServerFactory):
    currently connected clients.
    """
 
+   usernames = {}
+
    def __init__(self, url, debug = False, debugCodePaths = False):
       WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
       self.clients = set()
 
+   def logged_in(self, client):
+      return client in self.usernames
+
+   def login(self, client, username):
+      self.usernames[client] = username
+      client.sendMessage("OK")
+      for c in self.get_clients(client):
+         c.sendMessage("%s logged in!" %(self.username(client)))
+
+   def logout(self, client):
+      username = self.usernames.pop(client)
+      for c in self.get_clients(client):
+         c.sendMessage("%s logged out!" %(username))
+
+   def username(self, client, default = "Anonymous"):
+      return self.usernames.get(client, default)
+
    def register(self, client):
       print("registered client {}".format(client.peer))
       self.clients.add(client)
+
+   def get_clients(self, exclude = None):
+      # TODO: alle registrierten oder alle angemeldeten?
+      #for c in self.clients:
+      for c in self.usernames.keys():
+         if exclude is None or exclude != c:
+            yield c
 
    def unregister(self, client):
       try:
@@ -70,10 +103,10 @@ class BroadcastServerFactory(WebSocketServerFactory):
       except KeyError, e:
          print("client {} was not yet registered!".format(client.peer))
 
-   def broadcast(self, msg):
+   def broadcast(self, msg, client):
       print("broadcasting message '{}' ...".format(msg))
-      for c in self.clients:
-         c.sendMessage(msg.encode('utf8'))
+      for c in self.get_clients():
+         c.sendMessage("%s: %s" %(self.username(client), msg.encode('utf8')))
          print("message sent to {}".format(c.peer))
 
 if __name__ == '__main__':
