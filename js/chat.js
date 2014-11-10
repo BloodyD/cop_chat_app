@@ -50,6 +50,11 @@ $("#btn_login").click(function() {
    // logged_in = true;
 });
 
+$(".layer").change(function () {
+  if($(this).is(":checked")) send($(this).attr("layer-name"), "activatelayer");
+  else send($(this).attr("layer-name"), "deactivatelayer");
+});
+
 function enable_chat(){
    $('#chat').show();
    $('#login').hide();
