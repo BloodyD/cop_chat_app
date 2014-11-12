@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+   <style type="text/css">
+   #log, #bbcode-display{
+      height: 20em;
+      overflow-y: scroll;
+      background-color: #faa;
+   }
+
+   </style>
+   </head>
+   <body>
+      <h1>Autobahn WebSocket Chat Demo v1</h1>
+      <noscript>You must enable JavaScript</noscript>
+
+      <pre id="log"></pre>
+      <div id="chat">
+         <p>
+            <textarea id="message" cols="120" rows="10"></textarea>
+            <input type="button" id="btn_chat" value="Send"/>
+         </p>
+      </div>
+      <p id="login">
+         <input id="username" type="text" size="50" maxlength="50" value="Enter your name here">
+         <input type="button" id="btn_login" value="Login"/>
+      </p>
+
+      <script src="http://localhost:8080/js/jquery.js"></script>
+      <script type="text/javascript">
+         function get_chat_text () {
+            return $("#message").val();
+         }
+         var version = "v1";
+      </script>
+      <script src="http://localhost:8080/js/chat.js"></script>
+      </script>
+   </body>
+</html>

@@ -2,7 +2,6 @@
 var sock = null;
 var ellog = document.getElementById('log');
 var wsuri = "ws://localhost:9000";
-// var logged_in = false;
 
 $(function () {
    connect();
@@ -20,39 +19,31 @@ function connect() {
    }
    if (sock) {
       sock.onopen = function() {
-         log("Connected to " + wsuri);
+        log("Connected to " + wsuri);
       }
 
       sock.onclose = function(e) {
-         log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
-         sock = null;
-         // logged_in = false;
+        log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
+        sock = null;
       }
 
       sock.onmessage = function(e) {
-         message = build_message(e.data);
-         if(message.method == "login" && message.data == "OK"){
-            enable_chat();
-            log("You are logged in!");
-         } else {
-            log(message.data);
-         }
+        message = build_message(e.data);
+        if(message.method == "login" && message.data == "OK"){
+          enable_chat();
+        } else {
+          log(message.data);
+        }
       }
    }
 }
 
 $("#btn_chat").click(function() {
-   send($('#message').bbcode(), "chat");
+   send(get_chat_text(), "chat");
 });
 
 $("#btn_login").click(function() {
    send($('#username').val(), "login");
-   // logged_in = true;
-});
-
-$(".layer").change(function () {
-  if($(this).is(":checked")) send($(this).attr("layer-name"), "activatelayer");
-  else send($(this).attr("layer-name"), "deactivatelayer");
 });
 
 function enable_chat(){
@@ -67,7 +58,7 @@ function disable_chat(){
 };
 
 function stringify_message(msg, method) {
-   return JSON.stringify({"method": method, "data": msg});
+   return JSON.stringify({"method": method, "data": msg, "version": version});
 }
 
 function build_message(json_string) {

@@ -1,47 +1,10 @@
 <!DOCTYPE html>
 <html>
    <head>
-      <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-   <style type="text/css">
-   #log, #bbcode-display{
-      height: 20em;
-      overflow-y: scroll;
-      background-color: #faa;
-   }
-
-   </style>
    </head>
    <body>
-      <h1>Autobahn WebSocket Chat Demo</h1>
-      <noscript>You must enable JavaScript</noscript>
-
-      <pre id="log"></pre>
-      <!-- <div id="bbcode-display"></div> -->
-      <div id="chat">
-         <p>
-            <textarea id="message"></textarea>
-            <input type="button" id="btn_chat" value="Send"/>
-         </p>
-         <p>
-            <input type="checkbox" class="layer" layer-name="bbcode">
-            <label for="bbcode_layer">Enable BBCode</label>
-         </p>
-      </div>
-      <p id="login">
-         <input id="username" type="text" size="50" maxlength="50" value="Enter your name here">
-         <input type="button" id="btn_login" value="Login"/>
-      </p>
-
-      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
-      <script src="http://localhost:8080/js/chat.js"></script>
-      <script src="http://localhost:8080/js/layers.js"></script>
-      <script src="http://localhost:8080/js/jquery.wysibb.min.js"></script>
-      <link rel="stylesheet" href="http://localhost:8080/css/wbbtheme.css" />
-
       <script type="text/javascript">
-         $(function () {
-            $("#message").wysibb();
-         });
+         window.location.replace("/v1");
       </script>
    </body>
 </html>

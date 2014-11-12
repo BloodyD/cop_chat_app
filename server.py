@@ -6,7 +6,7 @@
 ##  you may not use this file except in compliance with the License.
 ##  You may obtain a copy of the License at
 ##
-##      http://www.apache.org/licenses/LICENSE-2.0
+##    http://www.apache.org/licenses/LICENSE-2.0
 ##
 ##  Unless required by applicable law or agreed to in writing, software
 ##  distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,179 +26,198 @@ from twisted.web.server import Site
 from twisted.web.static import File
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
-                                       WebSocketServerProtocol, \
-                                       listenWS
+                          WebSocketServerProtocol as BaseProtocol, \
+                          listenWS
 
-from contextpy import layer, base, around, activelayer, proceed
+from contextpy import *
 
 bbcode = layer("BBCode")
-
-ALL_LAYERS = {
-   "bbcode": bbcode
-}
+v1 = layer("Version 1")
+v2 = layer("Version 2")
+is_anonymous = layer("Anonymous")
 
 class Message(object):
-   def __init__(self, payload = None, data = None, method = None):
-      super(Message, self).__init__()
-      if payload is None:
-         self.data = data
-         self.method = method
-      else:
-         self.__dict__ = json.loads(payload)
 
-   def as_json(self):
-      return json.dumps(self.__dict__)
+  login = layer("Login")
+  chat = layer("Chat")
 
-   @property
-   def is_login(self):
-      return self.method == "login"
+  layer = None
 
-   @property
-   def is_activate_layer(self):
-      return self.method == "activatelayer"
+  __method_to_layer = {
+    "login": login,
+    "chat": chat,
+  }
+  def __init__(self, payload = None, data = None, method = None):
+    super(Message, self).__init__()
+    if payload is None:
+      self.set_data(data)
+      self.method = method
+    else:
+      payload = json.loads(payload)
+      self.set_data(payload["data"])
+      self.method = payload["method"]
+      self.layer = self.__method_to_layer.get(payload["method"])
 
-   @property
-   def is_deactivate_layer(self):
-      return self.method == "deactivatelayer"
+  @property
+  def method(self):
+    return self._method
 
-   @property
-   def is_chat(self):
-      return self.method == "chat"
-
-class BroadcastServerProtocol(WebSocketServerProtocol):
-
-   @around(bbcode)
-   def createMessage(self, data, method):
-      return Message(data = data, method = method)
-
-   @base
-   def createMessage(self, data, method):
-      return Message(data = re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data), method = method)
+  @method.setter
+  def method(self, value):
+    self._method = value
+    self.layer = self.__method_to_layer.get(value)
 
 
-   def sendMessage(self, data, method = "chat"):
-      # print "sending chat message {}".format(data)
-      msg = self.createMessage(data, method)
-      WebSocketServerProtocol.sendMessage(self, msg.as_json())
+  @base
+  def set_data(self, data):
+    self.data = data
 
-   def onOpen(self):
-      self.factory.register(self)
+  @around(v2)
+  def set_data(self, data):
+    proceed(data)
 
-   def onMessage(self, payload, isBinary):
-      if isBinary: raise NotImplemented("Binary content is not supported!")
-      m = Message(payload = payload)
+  @around(v1)
+  def set_data(self, data):
+    self.data = re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data)
 
-      if m.is_login and not self.factory.logged_in(self):
-         self.factory.login(self, m.data)
-         print("user {} logged in".format(payload))
+  def as_json(self):
+    return json.dumps({"data": self.data, "method": self.method})
 
-      elif m.is_chat:
-         self.factory.broadcast(m.data, self)
+class ClientProtocol(object, BaseProtocol):
 
-      elif m.is_activate_layer:
-         self.factory.activate_layer(m.data, self)
+  def __init__(self, *args, **kw):
+    object.__init__(self)
+    # self.logged_in = False
+    self._username = None
+    self.layers = set([is_anonymous])
 
-      elif m.is_deactivate_layer:
-         self.factory.deactivate_layer(m.data, self)
+  @property
+  def logged_in(self):
+    return self._username is not None
 
-
-   def onClose(self, wasClean, code, reason):
-      self.factory.logout(self)
-
-   def connectionLost(self, reason):
-      WebSocketServerProtocol.connectionLost(self, reason)
-      self.factory.unregister(self)
+  @logged_in.setter
+  def logged_in(self, value):
+    pass # no setter!
 
 
-class BroadcastServerFactory(WebSocketServerFactory):
-   """
-   Simple broadcast server broadcasting any message it receives to all
-   currently connected clients.
-   """
+  @property
+  def username(self):
+    return self._username
 
-   usernames = {}
-   layers = {}
+  @username.setter
+  def username(self, val):
+    self._username = val
+    if val is not None:
+      self.layers.remove(is_anonymous)
+    else:
+      self.layers.add(is_anonymous)
 
-   def __init__(self, url, debug = False, debugCodePaths = False):
-      WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
-      self.clients = set()
+  # naming purpose
+  @property
+  def server(self):
+    return self.factory
 
-   def activate_layer(self, layer, client):
-      self.layers[client] = ALL_LAYERS.get(layer)
+  @server.setter
+  def server(self, value):
+    self.factory = value
 
-   def deactivate_layer(self, layer, client):
-      try:
-         assert self.layers.pop(client) == ALL_LAYERS.get(layer)
-      except AssertionError, e:
-         print("active layers have not matched!")
-      except KeyError, e:
-         print("no layers found for the client!")
 
-   def logged_in(self, client):
-      return client in self.usernames
+  def sendMessage(self, data, method = "chat"):
+    with activelayers(*self.layers):
+      self._sendMessage(data, method)
 
-   def login(self, client, username):
-      if username in self.usernames.values():
-         client.sendMessage("Username already in use!", method = "login")
-         return
+  @base
+  def _sendMessage(self, data, method):
+    BaseProtocol.sendMessage(self, Message(data = data, method = method).as_json())
 
-      self.usernames[client] = username
-      client.sendMessage("OK", method = "login")
-      for c, layer in self.get_clients(client):
-         c.sendMessage("%s logged in!" %(self.username(client)))
+  @around(is_anonymous)
+  def _sendMessage(self, data, method):
+    if method == "chat": return
+    proceed(data, method)
 
-   def logout(self, client):
-      username = self.usernames.pop(client)
-      for c, layer in self.get_clients(client):
-         c.sendMessage("%s logged out!" %(username))
 
-   def username(self, client, default = "Anonymous"):
-      return self.usernames.get(client, default)
+  def onOpen(self):
+    self.server.register(self)
 
-   def register(self, client):
-      print("registered client {}".format(client.peer))
-      self.clients.add(client)
+  def onMessage(self, payload, isBinary):
+    if isBinary: raise NotImplemented("Binary content is not supported!")
+    m = Message(payload = payload)
+    with activelayer(m.layer):
+      with activelayers(*self.layers):
+        self.handle_message(m)
 
-   def get_clients(self, exclude = None):
-      # TODO: alle registrierten oder alle angemeldeten?
-      #for c in self.clients:
-      for c in self.usernames.keys():
-         if exclude is None or exclude != c:
-            yield c, self.layers.get(c)
+  @base
+  def handle_message(self, message):
+    self.server.chat(message.data, self)
 
-   def unregister(self, client):
-      try:
-         print("unregistered client {}".format(client.peer))
-         self.clients.remove(client)
-      except KeyError, e:
-         print("client {} was not yet registered!".format(client.peer))
+  @around(Message.login)
+  # @around(is_anonymous)
+  def handle_message(self, message):
+    self.username = message.data
+    # inform the others
+    self.server.inform("%s logged in!" %(self.username), exclude = self)
+    # send info to self
+    with inactivelayer(is_anonymous):
+      self.sendMessage("OK", method = "login")
+      self.sendMessage("You are logged in!")
 
-   def broadcast(self, msg, client):
-      # print("broadcasting message '{}' ...".format(msg))
-      for c, layer in self.get_clients():
-         with activelayer(layer):
-            c.sendMessage("%s: %s" %(self.username(client), msg))
-         print("message sent to {}".format(c.peer))
+  def logout(self):
+    if not self.logged_in: return
+    self.server.inform("%s logged out!" %(self.username), exclude = self)
+    self.server.unregister(self)
+    self.username = None
+
+  def onClose(self, wasClean, code, reason):
+    self.logout()
+
+  def connectionLost(self, reason):
+    self.logout()
+    BaseProtocol.connectionLost(self, reason)
+
+
+class Server(WebSocketServerFactory):
+  """
+  Simple broadcast server broadcasting any message it receives to all
+  currently connected clients.
+  """
+
+  def __init__(self, url, debug = False, debugCodePaths = False):
+    WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
+    self._clients = set()
+
+  register = lambda self, client: self._clients.add(client)
+  unregister = lambda self, client: self._clients.remove(client)
+
+  def clients(self, exclude = None):
+    for c in self._clients:
+      if exclude is None or exclude != c:
+        yield c
+
+
+  def inform(self, msg, exclude = None):
+    for client in self.clients(exclude):
+      client.sendMessage(msg, method = "inform")
+
+  def chat(self, msg, sender):
+    for client in self.clients():
+      client.sendMessage("%s: %s" %(sender.username, msg))
 
 
 if __name__ == '__main__':
 
-   if len(sys.argv) > 1 and sys.argv[1] == 'debug':
-      log.startLogging(sys.stdout)
-      debug = True
-   else:
-      debug = False
+  log.startLogging(sys.stdout)
+  debug = True
 
-   factory = BroadcastServerFactory("ws://localhost:9000",
-                           debug = debug,
-                           debugCodePaths = debug)
+  server = Server("ws://localhost:9000",
+                  debug = debug,
+                  debugCodePaths = debug)
 
-   factory.protocol = BroadcastServerProtocol
-   factory.setProtocolOptions(allowHixie76 = True)
-   listenWS(factory)
+  server.protocol = ClientProtocol
+  server.setProtocolOptions(allowHixie76 = True)
+  listenWS(server)
 
-   webdir = File(".")
-   web = Site(webdir)
-   reactor.listenTCP(8080, web)
+  webdir = File(".")
+  web = Site(webdir)
+  reactor.listenTCP(8080, web)
 
-   reactor.run()
+  reactor.run()
