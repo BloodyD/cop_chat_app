@@ -47,16 +47,31 @@ class Message(object):
     "login": login,
     "chat": chat,
   }
-  def __init__(self, payload = None, data = None, method = None):
+
+  __version_to_layer = {
+    "v1": v1,
+    "v2": v2,
+  }
+  def __init__(self, payload = None, data = None, method = None, version = "v2"):
     super(Message, self).__init__()
     if payload is None:
-      self.set_data(data)
+      self.data = data
       self.method = method
+      self.version = version
     else:
       payload = json.loads(payload)
-      self.set_data(payload["data"])
+      self.data = payload["data"]
       self.method = payload["method"]
-      self.layer = self.__method_to_layer.get(payload["method"])
+      self.version = payload["version"]
+
+  @property
+  def version(self):
+      return self._version
+
+  @version.setter
+  def version(self, value):
+      self._version = self.__version_to_layer.get(value, v2)
+
 
   @property
   def method(self):
@@ -67,21 +82,15 @@ class Message(object):
     self._method = value
     self.layer = self.__method_to_layer.get(value)
 
-
-  @base
-  def set_data(self, data):
-    self.data = data
-
-  @around(v2)
-  def set_data(self, data):
-    proceed(data)
-
-  @around(v1)
-  def set_data(self, data):
-    self.data = re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data)
-
   def as_json(self):
     return json.dumps({"data": self.data, "method": self.method})
+
+
+def remove_bbcode(data):
+  return re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data)
+
+def bbcode_to_html(data):
+  return data.replace("[", "<").replace("]", ">")
 
 class ClientProtocol(object, BaseProtocol):
 
@@ -123,12 +132,21 @@ class ClientProtocol(object, BaseProtocol):
 
 
   def sendMessage(self, data, method = "chat"):
+    print self.layers
     with activelayers(*self.layers):
       self._sendMessage(data, method)
 
   @base
   def _sendMessage(self, data, method):
     BaseProtocol.sendMessage(self, Message(data = data, method = method).as_json())
+
+  @around(v2)
+  def _sendMessage(self, data, method):
+    proceed(bbcode_to_html(data), method)
+
+  @around(v1)
+  def _sendMessage(self, data, method):
+    proceed(remove_bbcode(data), method)
 
   @around(is_anonymous)
   def _sendMessage(self, data, method):
@@ -153,13 +171,21 @@ class ClientProtocol(object, BaseProtocol):
   @around(Message.login)
   # @around(is_anonymous)
   def handle_message(self, message):
+    if not self.server.username_available(message.data):
+      self.sendMessage("Username already in use!", method = "login")
+      return
+
     self.username = message.data
+
+    # set version layer
+    self.layers.add(message.version)
+
     # inform the others
     self.server.inform("%s logged in!" %(self.username), exclude = self)
+
     # send info to self
-    with inactivelayer(is_anonymous):
-      self.sendMessage("OK", method = "login")
-      self.sendMessage("You are logged in!")
+    self.sendMessage("OK", method = "login")
+    self.sendMessage("You are logged in!", method = "login")
 
   def logout(self):
     if not self.logged_in: return
@@ -193,6 +219,8 @@ class Server(WebSocketServerFactory):
       if exclude is None or exclude != c:
         yield c
 
+  def username_available(self, username):
+    return not any(map(lambda x: x.username == username, self.clients()))
 
   def inform(self, msg, exclude = None):
     for client in self.clients(exclude):

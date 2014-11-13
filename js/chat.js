@@ -74,10 +74,13 @@ function send(msg, method){
 };
 
 function log(m) {
-   ellog.innerHTML += BBC2HTML(m) + '\n';
+   ellog.innerHTML += m + '\n';
    ellog.scrollTop = ellog.scrollHeight;
 };
 
+
+
+/*
 function BBC2HTML(S) {
    if (S.indexOf('[') < 0) return S;
 
@@ -122,4 +125,4 @@ function BBC2HTML(S) {
    B['\\[quote(?:=([^\\]]+))?]'] = function($0, $1) {return '<div class="bb-quote">'+ ($1 ? $1 +' wrote' : 'Quote') +':<blockquote>'}; B['\\[/quote]'] = '</blockquote></div>';
    B['\\[(hr|br)]'] = '<$1 />'; B['\\[sp]'] = '&nbsp;';
    return R(A(A(S, I), B));
-}
+}*/
