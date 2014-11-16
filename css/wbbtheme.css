@@ -685,85 +685,84 @@ html{height:100% !important;}
 
 /* DESKTOP AND TAVBLETS STYLES */
 	/* TOOLBAR */
-	.wysibb .wysibb-text{
-	  padding:5px;
-	  margin:0;
-	}
-	.wysibb .wysibb-toolbar{
-	  float:none;
-	  width:auto;
-	  overflow:visible;
-	  border-right:0;
-	}
-	.wysibb .wysibb-toolbar {
-	  border-bottom:1px solid #ddd;
-	  position:relative;
-	  padding:0 60px 0 0;
-	  height:auto;
-	}
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container {
-	  margin:0;
-	  border-right: 1px solid #ddd;
-	  padding:0;
-	  display:inline-block;
-	}
-
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn {
-	  display:inline-block;
-	  height:32px;
-	  min-width:28px;
-	  position:relative;
-	  vertical-align: middle;
-	  padding:0px 1px;
-	  cursor:pointer;
-	  margin:0 0 0 1px;
-	  font-size: 12px;
-	  border:1px solid transparent;
-	  width:auto;
-	}
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn:hover span.btn-tooltip{
-	  display:block;
-	}
-	.wysibb .wysibb-toolbar .modeSwitch{
-	  text-align:center;
-	  position:absolute;
-	  right:0px;
-	  top:0px;
-	  border:0;
-	}
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container select.wbb-selectbox{
-	  display:none;
-	}
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select{
-	  display:inline-block;
-	}
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select span.val,.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select ins{
-	  display:block;
-	}
-
-	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn .wbb-list{
-	  display:none;
-	  position:absolute;
-	  top:32px;
-	  left:-1px;
-	  border: 1px solid #bbb;
-	  box-shadow: 0px 0px 3px #aaa;
-	  width:190px;
-	  background:#fff;
-	  max-height:220px;
-	  overflow:auto;
-	  z-index:1000;
-	}
-
-	.wbb-list .sc{
-	  width: 16px;
-	  height: 16px;
-	  margin: 0 0 1px 1px;
-	  display: inline-block;*display:inline;zoom: 1;
-	  cursor: pointer;
-	  border:1px solid #fff;
-	}
-
-	.ve-tlb-colorpick{width:24px;height:24px;line-height:24px;text-align:right;}
-	.wysibb .bottom-resize-line{display:block;height:5px;cursor:ns-resize;}
+.wysibb .wysibb-text{
+  padding:5px;
+  margin:0;
 }
+.wysibb .wysibb-toolbar{
+  float:none;
+  width:auto;
+  overflow:visible;
+  border-right:0;
+}
+.wysibb .wysibb-toolbar {
+  border-bottom:1px solid #ddd;
+  position:relative;
+  padding:0 60px 0 0;
+  height:auto;
+}
+.wysibb .wysibb-toolbar .wysibb-toolbar-container {
+  margin:0;
+  border-right: 1px solid #ddd;
+  padding:0;
+  display:inline-block;
+}
+
+.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn {
+  display:inline-block;
+  height:32px;
+  min-width:28px;
+  position:relative;
+  vertical-align: middle;
+  padding:0px 1px;
+  cursor:pointer;
+  margin:0 0 0 1px;
+  font-size: 12px;
+  border:1px solid transparent;
+  width:auto;
+}
+.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn:hover span.btn-tooltip{
+  display:block;
+}
+.wysibb .wysibb-toolbar .modeSwitch{
+  text-align:center;
+  position:absolute;
+  right:0px;
+  top:0px;
+  border:0;
+}
+.wysibb .wysibb-toolbar .wysibb-toolbar-container select.wbb-selectbox{
+  display:none;
+}
+.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select{
+  display:inline-block;
+}
+.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select span.val,.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select ins{
+  display:block;
+}
+
+.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn .wbb-list{
+  display:none;
+  position:absolute;
+  top:32px;
+  left:-1px;
+  border: 1px solid #bbb;
+  box-shadow: 0px 0px 3px #aaa;
+  width:190px;
+  background:#fff;
+  max-height:220px;
+  overflow:auto;
+  z-index:1000;
+}
+
+.wbb-list .sc{
+  width: 16px;
+  height: 16px;
+  margin: 0 0 1px 1px;
+  display: inline-block;*display:inline;zoom: 1;
+  cursor: pointer;
+  border:1px solid #fff;
+}
+
+.ve-tlb-colorpick{width:24px;height:24px;line-height:24px;text-align:right;}
+.wysibb .bottom-resize-line{display:block;height:5px;cursor:ns-resize;}
