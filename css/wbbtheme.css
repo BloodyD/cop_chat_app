@@ -13,7 +13,7 @@
 }
 
 
- 
+
 html{height:100% !important;}
 
 /* RESPONSIBLE */
@@ -173,7 +173,7 @@ html{height:100% !important;}
   text-transform:uppercase;
 }
 
- 
+
 
 .ve-tlb-bold{background:url(./img/icons.png) 0 0 no-repeat;width:20px;}
 .ve-tlb-italic{background:url(./img/icons.png) 0 -40px no-repeat;width:20px;}
@@ -535,7 +535,7 @@ html{height:100% !important;}
   line-height:26px;
   border:1px solid #357ebd;
   border-radius:0px;
-  
+
   cursor:pointer;
 }
 #wbbmodal .wbb-button:hover{
@@ -684,7 +684,6 @@ html{height:100% !important;}
 
 
 /* DESKTOP AND TAVBLETS STYLES */
-@media (min-width: 992px) {
 	/* TOOLBAR */
 	.wysibb .wysibb-text{
 	  padding:5px;
@@ -708,7 +707,7 @@ html{height:100% !important;}
 	  padding:0;
 	  display:inline-block;
 	}
-	
+
 	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn {
 	  display:inline-block;
 	  height:32px;
@@ -741,7 +740,7 @@ html{height:100% !important;}
 	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select span.val,.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn.wbb-select ins{
 	  display:block;
 	}
-	
+
 	.wysibb .wysibb-toolbar .wysibb-toolbar-container .wysibb-toolbar-btn .wbb-list{
 	  display:none;
 	  position:absolute;
@@ -755,7 +754,7 @@ html{height:100% !important;}
 	  overflow:auto;
 	  z-index:1000;
 	}
-	
+
 	.wbb-list .sc{
 	  width: 16px;
 	  height: 16px;
@@ -764,7 +763,7 @@ html{height:100% !important;}
 	  cursor: pointer;
 	  border:1px solid #fff;
 	}
-	
+
 	.ve-tlb-colorpick{width:24px;height:24px;line-height:24px;text-align:right;}
 	.wysibb .bottom-resize-line{display:block;height:5px;cursor:ns-resize;}
 }
