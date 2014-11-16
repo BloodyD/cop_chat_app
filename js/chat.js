@@ -19,12 +19,15 @@ function connect() {
    }
    if (sock) {
       sock.onopen = function() {
+        clear_log();
         log("Connected to " + wsuri);
       }
 
       sock.onclose = function(e) {
-        log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "')");
+        log("Connection closed (wasClean = " + e.wasClean + ", code = " + e.code + ", reason = '" + e.reason + "'). Reconnect in 5s...");
         sock = null;
+        disable_chat();
+        setTimeout(connect, 5000);
       }
 
       sock.onmessage = function(e) {
@@ -78,6 +81,9 @@ function log(m) {
    ellog.scrollTop = ellog.scrollHeight;
 };
 
+function clear_log() {
+   ellog.innerHTML = "";
+};
 
 
 /*

@@ -2,3 +2,4 @@ contextpy
 autobahn
 simplejson
 twisted
+bbcode

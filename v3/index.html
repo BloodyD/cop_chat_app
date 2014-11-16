@@ -12,7 +12,7 @@
    </style>
    </head>
    <body>
-      <h1>Autobahn WebSocket Chat Demo v2</h1>
+      <h1>Autobahn WebSocket Chat Demo v3</h1>
       <noscript>You must enable JavaScript</noscript>
 
       <pre id="log"></pre>
@@ -32,7 +32,7 @@
          function get_chat_text () {
             return $("#message").bbcode();
          }
-         var version = "v2";
+         var version = "v3";
       </script>
       <script src="http://localhost:8080/js/chat.js"></script>
 
@@ -43,7 +43,7 @@
       <script type="text/javascript">
          $(function () {
             $("#message").wysibb({
-               buttons: "bold,italic,underline,|,bullist,numlist,|,strike,sup,sub,link,|,removeformat"
+               buttons: "bold,italic,underline,|,bullist,numlist,|,strike,sup,sub,link,|,fontsize,fontfamily,img,|,removeformat"
             });
          });
       </script>

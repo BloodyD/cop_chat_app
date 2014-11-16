@@ -5,8 +5,8 @@
    <style type="text/css">
    #log, #bbcode-display{
       height: 20em;
+      width: 100%;
       overflow-y: scroll;
-      background-color: #faa;
    }
 
    </style>
@@ -15,10 +15,11 @@
       <h1>Autobahn WebSocket Chat Demo v1</h1>
       <noscript>You must enable JavaScript</noscript>
 
-      <pre id="log"></pre>
+      <textarea id="log" readonly></textarea>
+
       <div id="chat">
          <p>
-            <textarea id="message" cols="120" rows="10"></textarea>
+            <textarea id="message" cols="60" rows="5"></textarea>
             <input type="button" id="btn_chat" value="Send"/>
          </p>
       </div>

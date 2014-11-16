@@ -19,6 +19,7 @@
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
 
 import sys, simplejson as json, re
+from bbcode import Parser
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -34,6 +35,7 @@ from contextpy import *
 bbcode = layer("BBCode")
 v1 = layer("Version 1")
 v2 = layer("Version 2")
+v3 = layer("Version 3")
 is_anonymous = layer("Anonymous")
 
 class Message(object):
@@ -51,6 +53,7 @@ class Message(object):
   __version_to_layer = {
     "v1": v1,
     "v2": v2,
+    "v3": v3,
   }
   def __init__(self, payload = None, data = None, method = None, version = "v2"):
     super(Message, self).__init__()
@@ -86,11 +89,29 @@ class Message(object):
     return json.dumps({"data": self.data, "method": self.method})
 
 
-def remove_bbcode(data):
-  return re.sub(r'\[[\/\w\s=]*\]\n{0,1}', "", data)
+def remove_tags(data):
+  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data))
 
-def bbcode_to_html(data):
-  return data.replace("[", "<").replace("]", ">")
+def bbcode_to_html(data, *args, **kw):
+  parser = Parser(*args, **kw)
+  return parser.format(data)
+
+media_replaces = [
+  ["[img]", "<img src=\""],
+  ["[/img]", "\">"],
+  ["[font=", "<font face=\""],
+  ["[size=50]", "<font size=\"1\">"],
+  ["[size=85]", "<font size=\"2\">"],
+  ["[size=100]", "<font size=\"3\">"],
+  ["[size=150]", "<font size=\"4\">"],
+  ["[size=200]", "<font size=\"5\">"],
+  ["[/size]", "<font\">"],
+  ["[/font]", "<font\">"],
+  ["]", "\">"],
+]
+
+def bbcode_to_html_with_media(data):
+  return bbcode_to_html(reduce(lambda data, replace: data.replace(*replace), media_replaces, data), escape_html = False, replace_links = False)
 
 class ClientProtocol(object, BaseProtocol):
 
@@ -140,13 +161,17 @@ class ClientProtocol(object, BaseProtocol):
   def _sendMessage(self, data, method):
     BaseProtocol.sendMessage(self, Message(data = data, method = method).as_json())
 
+  @around(v3)
+  def _sendMessage(self, data, method):
+    proceed(bbcode_to_html_with_media(data), method)
+
   @around(v2)
   def _sendMessage(self, data, method):
-    proceed(bbcode_to_html(data), method)
+    proceed(bbcode_to_html(data, replace_links = False), method)
 
   @around(v1)
   def _sendMessage(self, data, method):
-    proceed(remove_bbcode(data), method)
+    proceed(remove_tags(data), method)
 
   @around(is_anonymous)
   def _sendMessage(self, data, method):
