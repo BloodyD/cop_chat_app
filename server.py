@@ -63,7 +63,7 @@ class Message(object):
       self.version = version
     else:
       payload = json.loads(payload)
-      self.data = payload["data"]
+      self.data = remove_html(payload["data"])
       self.method = payload["method"]
       self.version = payload["version"]
 
@@ -89,8 +89,14 @@ class Message(object):
     return json.dumps({"data": self.data, "method": self.method})
 
 
+def remove_bbcode(data):
+  return re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data)
+
+def remove_html(data):
+  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", data)
+
 def remove_tags(data):
-  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data))
+  return remove_html(remove_bbcode(data))
 
 def bbcode_to_html(data, *args, **kw):
   parser = Parser(*args, **kw)
@@ -111,7 +117,11 @@ media_replaces = [
 ]
 
 def bbcode_to_html_with_media(data):
-  return bbcode_to_html(reduce(lambda data, replace: data.replace(*replace), media_replaces, data), escape_html = False, replace_links = False)
+  data = bbcode_to_html(data, escape_html = False, replace_links = False)
+  return reduce(
+    lambda data, replace: data.replace(*replace),
+    media_replaces,
+    data)
 
 class ClientProtocol(object, BaseProtocol):
 
@@ -153,7 +163,6 @@ class ClientProtocol(object, BaseProtocol):
 
 
   def sendMessage(self, data, method = "chat"):
-    print self.layers
     with activelayers(*self.layers):
       self._sendMessage(data, method)
 
@@ -167,7 +176,7 @@ class ClientProtocol(object, BaseProtocol):
 
   @around(v2)
   def _sendMessage(self, data, method):
-    proceed(bbcode_to_html(data, replace_links = False), method)
+    proceed(bbcode_to_html(data, replace_links = False, escape_html = False), method)
 
   @around(v1)
   def _sendMessage(self, data, method):
@@ -186,8 +195,7 @@ class ClientProtocol(object, BaseProtocol):
     if isBinary: raise NotImplemented("Binary content is not supported!")
     m = Message(payload = payload)
     with activelayer(m.layer):
-      with activelayers(*self.layers):
-        self.handle_message(m)
+      self.handle_message(m)
 
   @base
   def handle_message(self, message):
@@ -252,6 +260,7 @@ class Server(WebSocketServerFactory):
       client.sendMessage(msg, method = "inform")
 
   def chat(self, msg, sender):
+    if len(msg.strip()) == 0: return
     for client in self.clients():
       client.sendMessage("%s: %s" %(sender.username, msg))
 
