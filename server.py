@@ -17,9 +17,7 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-
-import sys, simplejson as json, re
-from bbcode import Parser
+import sys
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -31,103 +29,36 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                           listenWS
 
 from contextpy import *
+from utils import *
 
-bbcode = layer("BBCode")
-v1 = layer("Version 1")
-v2 = layer("Version 2")
-v3 = layer("Version 3")
-is_anonymous = layer("Anonymous")
+class BaseClient(object, BaseProtocol):
 
-class Message(object):
+  # WebSocket interface
+  def onOpen(self):
+    self.server.register(self)
 
-  login = layer("Login")
-  chat = layer("Chat")
+  def onMessage(self, payload, isBinary):
+    if isBinary: raise NotImplemented("Binary content is not supported!")
+    m = Message(payload = payload)
+    with activelayer(m.layer):
+      self.handle_message(m)
 
-  layer = None
+  def onClose(self, wasClean, code, reason):
+    self.logout()
 
-  __method_to_layer = {
-    "login": login,
-    "chat": chat,
-  }
+  def connectionLost(self, reason):
+    self.logout()
+    BaseProtocol.connectionLost(self, reason)
 
-  __version_to_layer = {
-    "v1": v1,
-    "v2": v2,
-    "v3": v3,
-  }
-  def __init__(self, payload = None, data = None, method = None, version = "v2"):
-    super(Message, self).__init__()
-    if payload is None:
-      self.data = data
-      self.method = method
-      self.version = version
-    else:
-      payload = json.loads(payload)
-      self.data = remove_html(payload["data"])
-      self.method = payload["method"]
-      self.version = payload["version"]
+  def logout(self):
+    if not self.logged_in: return
+    self.server.inform("%s logged out!" %(self.username), exclude = self)
+    self.server.unregister(self)
+    self.username = None
 
-  @property
-  def version(self):
-      return self._version
-
-  @version.setter
-  def version(self, value):
-      self._version = self.__version_to_layer.get(value, v2)
-
-
-  @property
-  def method(self):
-    return self._method
-
-  @method.setter
-  def method(self, value):
-    self._method = value
-    self.layer = self.__method_to_layer.get(value)
-
-  def as_json(self):
-    return json.dumps({"data": self.data, "method": self.method})
-
-
-def remove_bbcode(data):
-  return re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data)
-
-def remove_html(data):
-  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", data)
-
-def remove_tags(data):
-  return remove_html(remove_bbcode(data))
-
-def bbcode_to_html(data, *args, **kw):
-  parser = Parser(*args, **kw)
-  return parser.format(data)
-
-media_replaces = [
-  ["[img]", "<img src=\""],
-  ["[/img]", "\">"],
-  ["[font=", "<font face=\""],
-  ["[size=50]", "<font size=\"1\">"],
-  ["[size=85]", "<font size=\"2\">"],
-  ["[size=100]", "<font size=\"3\">"],
-  ["[size=150]", "<font size=\"4\">"],
-  ["[size=200]", "<font size=\"5\">"],
-  ["[/size]", "<font\">"],
-  ["[/font]", "<font\">"],
-  ["]", "\">"],
-]
-
-def bbcode_to_html_with_media(data):
-  data = bbcode_to_html(data, escape_html = False, replace_links = False)
-  return reduce(
-    lambda data, replace: data.replace(*replace),
-    media_replaces,
-    data)
-
-class ClientProtocol(object, BaseProtocol):
-
+  # initialization, setter and getter
   def __init__(self, *args, **kw):
     object.__init__(self)
-    # self.logged_in = False
     self._username = None
     self.layers = set([is_anonymous])
 
@@ -138,7 +69,6 @@ class ClientProtocol(object, BaseProtocol):
   @logged_in.setter
   def logged_in(self, value):
     pass # no setter!
-
 
   @property
   def username(self):
@@ -152,7 +82,7 @@ class ClientProtocol(object, BaseProtocol):
     else:
       self.layers.add(is_anonymous)
 
-  # naming purpose
+  # only for naming
   @property
   def server(self):
     return self.factory
@@ -161,14 +91,16 @@ class ClientProtocol(object, BaseProtocol):
   def server(self, value):
     self.factory = value
 
+class Client(BaseClient):
 
   def sendMessage(self, data, method = "chat"):
     with activelayers(*self.layers):
       self._sendMessage(data, method)
 
+  # send messages considering active layers
   @base
   def _sendMessage(self, data, method):
-    BaseProtocol.sendMessage(self, Message(data = data, method = method).as_json())
+    BaseClient.sendMessage(self, Message(data = data, method = method).as_json())
 
   @around(v3)
   def _sendMessage(self, data, method):
@@ -188,21 +120,12 @@ class ClientProtocol(object, BaseProtocol):
     proceed(data, method)
 
 
-  def onOpen(self):
-    self.server.register(self)
-
-  def onMessage(self, payload, isBinary):
-    if isBinary: raise NotImplemented("Binary content is not supported!")
-    m = Message(payload = payload)
-    with activelayer(m.layer):
-      self.handle_message(m)
-
+  # when received, handle messages considering active layer
   @base
   def handle_message(self, message):
     self.server.chat(message.data, self)
 
   @around(Message.login)
-  # @around(is_anonymous)
   def handle_message(self, message):
     if not self.server.username_available(message.data):
       self.sendMessage("Username already in use!", method = "login")
@@ -220,18 +143,6 @@ class ClientProtocol(object, BaseProtocol):
     self.sendMessage("OK", method = "login")
     self.sendMessage("You are logged in!", method = "login")
 
-  def logout(self):
-    if not self.logged_in: return
-    self.server.inform("%s logged out!" %(self.username), exclude = self)
-    self.server.unregister(self)
-    self.username = None
-
-  def onClose(self, wasClean, code, reason):
-    self.logout()
-
-  def connectionLost(self, reason):
-    self.logout()
-    BaseProtocol.connectionLost(self, reason)
 
 
 class Server(WebSocketServerFactory):
@@ -274,7 +185,7 @@ if __name__ == '__main__':
                   debug = debug,
                   debugCodePaths = debug)
 
-  server.protocol = ClientProtocol
+  server.protocol = Client
   server.setProtocolOptions(allowHixie76 = True)
   listenWS(server)
 
