@@ -39,9 +39,7 @@ class BaseClient(object, BaseProtocol):
 
   def onMessage(self, payload, isBinary):
     if isBinary: raise NotImplemented("Binary content is not supported!")
-    m = Message(payload = payload)
-    with activelayer(m.layer):
-      self.handle_message(m)
+    self.handle_message(Message(payload = payload))
 
   def onClose(self, wasClean, code, reason):
     self.logout()
@@ -119,14 +117,18 @@ class Client(BaseClient):
     if method == "chat": return
     proceed(data, method)
 
+  def handle_message(self, message):
+    with activelayer(message.layer):
+      self._handle_message(message)
+
 
   # when received, handle messages considering active layer
   @base
-  def handle_message(self, message):
+  def _handle_message(self, message):
     self.server.chat(message.data, self)
 
   @around(Message.login)
-  def handle_message(self, message):
+  def _handle_message(self, message):
     if not self.server.username_available(message.data):
       self.sendMessage("Username already in use!", method = "login")
       return
@@ -142,7 +144,6 @@ class Client(BaseClient):
     # send info to self
     self.sendMessage("OK", method = "login")
     self.sendMessage("You are logged in!", method = "login")
-
 
 
 class Server(WebSocketServerFactory):
