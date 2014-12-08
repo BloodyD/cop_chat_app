@@ -16,48 +16,38 @@ class FirstExperiment(object):
     super(FirstExperiment, self).__init__()
     self.userid = userid
     self.layers = self.estimate_layers([(COLORS, "color"), (TEXTS, "text")])
-    self._assignment = {
-      "button_color": self.get_button_color,
-      "button_text": self.get_button_text
-    }
 
-  def get_choice(self, val):
-    choices, salt = val
+  def get_choice(self, choices, salt):
     if not choices: return
     hash_val = int(hashlib.sha1('salt.%s.%d' % (salt, self.userid)).hexdigest()[:15], 16)
     return choices[hash_val % len(choices)]
 
   def estimate_layers(self, vals):
-    return map(self.get_choice, vals)
+    return map(self.get_choice, *zip(*vals))
 
   @base
-  def get_button_color(self):
-    return "red"
+  def button_color(self): return "red"
 
   @around(red)
-  def get_button_color(self):
-    return proceed()
+  def button_color(self): return proceed()
 
   @around(green)
-  def get_button_color(self):
-    return "green"
+  def button_color(self): return "green"
 
 
   @base
-  def get_button_text(self):
-    return "Sign up."
+  def button_text(self): return "Sign up."
 
   @around(sign)
-  def get_button_text(self):
-    return proceed()
+  def button_text(self): return proceed()
 
   @around(join)
-  def get_button_text(self):
-    return "Join now!"
+  def button_text(self): return "Join now!"
 
   def get(self, name):
+    if not hasattr(self, name): return None
     with activelayers(*self.layers):
-      return self._assignment.get(name)()
+      return getattr(self, name)()
 
 
 
