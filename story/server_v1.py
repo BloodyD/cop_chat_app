@@ -17,16 +17,10 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-import sys, simplejson as json
-
-from twisted.internet import reactor
-from twisted.python import log
-from twisted.web.server import Site
-from twisted.web.static import File
+import simplejson as json
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
-                          WebSocketServerProtocol as BaseProtocol, \
-                          listenWS
+                          WebSocketServerProtocol as BaseProtocol
 
 class BaseClient(object, BaseProtocol):
 
@@ -120,23 +114,3 @@ class Server(WebSocketServerFactory):
     if len(msg.strip()) == 0: return
     for client in self.clients():
       client.sendMessage("%s: %s" %(sender.username, msg))
-
-
-if __name__ == '__main__':
-
-  log.startLogging(sys.stdout)
-  debug = True
-
-  server = Server("ws://localhost:9000",
-                  debug = debug,
-                  debugCodePaths = debug)
-
-  server.protocol = BaseClient
-  server.setProtocolOptions(allowHixie76 = True)
-  listenWS(server)
-
-  webdir = File(".")
-  web = Site(webdir)
-  reactor.listenTCP(8080, web)
-
-  reactor.run()
