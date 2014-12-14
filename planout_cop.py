@@ -28,18 +28,12 @@ class FirstExperiment(object):
   @base
   def button_color(self): return "red"
 
-  @around(red)
-  def button_color(self): return proceed()
-
   @around(green)
   def button_color(self): return "green"
 
 
   @base
   def button_text(self): return "Sign up."
-
-  @around(sign)
-  def button_text(self): return proceed()
 
   @around(join)
   def button_text(self): return "Join now!"

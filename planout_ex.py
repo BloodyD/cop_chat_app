@@ -4,11 +4,8 @@ from planout.ops.random import UniformChoice
 class FirstExperiment(SimpleExperiment):
   def assign(self, params, userid):
 
-    params.button_color = UniformChoice(
-      choices=['red', 'green'], unit=userid)
-
-    params.button_text = UniformChoice(
-      choices=['Join now!', 'Sign up.'], unit=userid)
+    params.button_color = UniformChoice(choices=['red', 'green'], unit=userid)
+    params.button_text = UniformChoice(choices=['Join now!', 'Sign up.'], unit=userid)
 
 
 s = "User{:<4d}{:^12s}{:^10s}"

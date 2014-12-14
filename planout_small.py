@@ -12,16 +12,13 @@ class FirstExperiment(object):
     super(FirstExperiment, self).__init__()
     self.userid = userid
     self._assignment = {
-      "button_color":
-        choice(['red', 'green'], userid, "color"),
-      "button_text":
-        choice(['Join now!', 'Sign up.'], userid, "text")
+      "button_color": choice(['red', 'green'], userid, "color"),
+      "button_text": choice(['Join now!', 'Sign up.'], userid, "text")
     }
 
   def get(self, name):
     return self._assignment.get(name)
 
-# experiment objects include all input data
 s = "User{:<4d}{:^12s}{:^10s}"
 print s.format(0, "-text-", "-color-")
 for i in xrange(1, 15):
