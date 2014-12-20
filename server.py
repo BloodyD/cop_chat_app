@@ -55,7 +55,6 @@ class Handler(object, WebSocketServerProtocol):
         self.sendMessage("login:inuse")
     else:
       self.server.chat(self, content)
-    # print "got message: %s" %(payload)
 
   # only for naming
   @property
@@ -92,28 +91,6 @@ class Server(WebSocketServerFactory):
   def chat(self, client_handler, content):
     if client_handler.username is None: return
     self.inform(client_handler, "%s: %s" %(client_handler.username, content))
-
-  #   self._clients = set()
-
-  # register = lambda self, client: self._clients.add(client)
-  # unregister = lambda self, client: self._clients.remove(client)
-
-  # def clients(self, exclude = None):
-  #   for c in self._clients:
-  #     if exclude is None or exclude != c:
-  #       yield c
-
-  # def username_available(self, username):
-  #   return not any(map(lambda x: x.username == username, self.clients()))
-
-  # def inform(self, msg, exclude = None):
-  #   for client in self.clients(exclude):
-  #     client.sendMessage(msg, method = "inform")
-
-  # def chat(self, msg, sender):
-  #   if len(msg.strip()) == 0: return
-  #   for client in self.clients():
-  #     client.sendMessage("%s: %s" %(sender.username, msg))
 
 
 if __name__ == '__main__':
