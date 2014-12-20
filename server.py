@@ -21,64 +21,41 @@ import sys
 
 from twisted.internet import reactor
 from twisted.python import log
-from twisted.web.server import Site
-from twisted.web.static import File
+# from twisted.web.server import Site
+# from twisted.web.static import File
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
-                          WebSocketServerProtocol as BaseProtocol, \
+                          WebSocketServerProtocol,\
                           listenWS
 
-from contextpy import *
-from utils import *
+class Handler(object, WebSocketServerProtocol):
 
-class BaseClient(object, BaseProtocol):
+  def __init__(self):
+    object.__init__(self)
+    self.username = None
 
-  # WebSocket interface
   def onOpen(self):
     self.server.register(self)
 
-  def onMessage(self, payload, isBinary):
-    if isBinary: raise NotImplemented("Binary content is not supported!")
-    self.handle_message(Message(payload = payload))
-
-  def onClose(self, wasClean, code, reason):
-    self.logout()
-
-  def connectionLost(self, reason):
-    self.logout()
-    BaseProtocol.connectionLost(self, reason)
-
-  def logout(self):
-    if not self.logged_in: return
-    self.server.inform("%s logged out!" %(self.username), exclude = self)
+  def onClose(self, was_clean, code, reason):
     self.server.unregister(self)
-    self.username = None
+    if self.username is not None:
+      self.server.inform(self, "User %s logged out!" %self.username)
+      self.username = None
+    print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
-  # initialization, setter and getter
-  def __init__(self, *args, **kw):
-    object.__init__(self)
-    self._username = None
-    self.layers = set([is_anonymous])
-
-  @property
-  def logged_in(self):
-    return self._username is not None
-
-  @logged_in.setter
-  def logged_in(self, value):
-    pass # no setter!
-
-  @property
-  def username(self):
-    return self._username
-
-  @username.setter
-  def username(self, val):
-    self._username = val
-    if val is not None:
-      self.layers.remove(is_anonymous)
+  def onMessage(self, payload, isBinary):
+    method, content = payload.split(":")
+    if method == "login":
+      if self.server.login(self, content):
+        self.username = content
+        self.sendMessage("login:OK")
+        self.server.inform(self, "User %s logged in!"%(self.username))
+      else:
+        self.sendMessage("login:inuse")
     else:
-      self.layers.add(is_anonymous)
+      self.server.chat(self, content)
+    # print "got message: %s" %(payload)
 
   # only for naming
   @property
@@ -89,62 +66,6 @@ class BaseClient(object, BaseProtocol):
   def server(self, value):
     self.factory = value
 
-class Client(BaseClient):
-
-  def sendMessage(self, data, method = "chat"):
-    with activelayers(*self.layers):
-      self._sendMessage(data, method)
-
-  # send messages considering active layers
-  @base
-  def _sendMessage(self, data, method):
-    BaseClient.sendMessage(self, Message(data = data, method = method).as_json())
-
-  @around(v3)
-  def _sendMessage(self, data, method):
-    proceed(bbcode_to_html_with_media(data), method)
-
-  @around(v2)
-  def _sendMessage(self, data, method):
-    proceed(bbcode_to_html(data, replace_links = False, escape_html = False), method)
-
-  @around(v1)
-  def _sendMessage(self, data, method):
-    proceed(remove_tags(data), method)
-
-  @around(is_anonymous)
-  def _sendMessage(self, data, method):
-    if method == "chat": return
-    proceed(data, method)
-
-  def handle_message(self, message):
-    with activelayer(message.layer):
-      self._handle_message(message)
-
-
-  # when received, handle messages considering active layer
-  @base
-  def _handle_message(self, message):
-    self.server.chat(message.data, self)
-
-  @around(Message.login)
-  def _handle_message(self, message):
-    if not self.server.username_available(message.data):
-      self.sendMessage("Username already in use!", method = "login")
-      return
-
-    self.username = message.data
-
-    # set version layer
-    self.layers.add(message.version)
-
-    # inform the others
-    self.server.inform("%s logged in!" %(self.username), exclude = self)
-
-    # send info to self
-    self.sendMessage("OK", method = "login")
-    self.sendMessage("You are logged in!", method = "login")
-
 
 class Server(WebSocketServerFactory):
   """
@@ -154,27 +75,45 @@ class Server(WebSocketServerFactory):
 
   def __init__(self, url, debug = False, debugCodePaths = False):
     WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
-    self._clients = set()
+    self.clients = set()
 
-  register = lambda self, client: self._clients.add(client)
-  unregister = lambda self, client: self._clients.remove(client)
+  register = lambda self, client_handler: self.clients.add(client_handler)
+  unregister = lambda self, client_handler: self.clients.remove(client_handler)
 
-  def clients(self, exclude = None):
-    for c in self._clients:
-      if exclude is None or exclude != c:
-        yield c
+  def login(self, client_handler, username):
+    return username not in map(lambda handler: handler.username, self.clients)
 
-  def username_available(self, username):
-    return not any(map(lambda x: x.username == username, self.clients()))
+  def inform(self, client_handler, content):
+    for client in self.clients:
+      if client_handler == client: continue
+      client.sendMessage("chat: %s" %(content))
 
-  def inform(self, msg, exclude = None):
-    for client in self.clients(exclude):
-      client.sendMessage(msg, method = "inform")
 
-  def chat(self, msg, sender):
-    if len(msg.strip()) == 0: return
-    for client in self.clients():
-      client.sendMessage("%s: %s" %(sender.username, msg))
+  def chat(self, client_handler, content):
+    if client_handler.username is None: return
+    self.inform(client_handler, "%s: %s" %(client_handler.username, content))
+
+  #   self._clients = set()
+
+  # register = lambda self, client: self._clients.add(client)
+  # unregister = lambda self, client: self._clients.remove(client)
+
+  # def clients(self, exclude = None):
+  #   for c in self._clients:
+  #     if exclude is None or exclude != c:
+  #       yield c
+
+  # def username_available(self, username):
+  #   return not any(map(lambda x: x.username == username, self.clients()))
+
+  # def inform(self, msg, exclude = None):
+  #   for client in self.clients(exclude):
+  #     client.sendMessage(msg, method = "inform")
+
+  # def chat(self, msg, sender):
+  #   if len(msg.strip()) == 0: return
+  #   for client in self.clients():
+  #     client.sendMessage("%s: %s" %(sender.username, msg))
 
 
 if __name__ == '__main__':
@@ -186,12 +125,12 @@ if __name__ == '__main__':
                   debug = debug,
                   debugCodePaths = debug)
 
-  server.protocol = Client
+  server.protocol = Handler
   server.setProtocolOptions(allowHixie76 = True)
   listenWS(server)
 
-  webdir = File(".")
-  web = Site(webdir)
-  reactor.listenTCP(8080, web)
+  # webdir = File(".")
+  # web = Site(webdir)
+  # reactor.listenTCP(8080, web)
 
   reactor.run()
