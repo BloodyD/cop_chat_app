@@ -47,6 +47,10 @@ class BaseClient(object, BaseProtocol):
     else:
       self.server.chat(data, self)
 
+  def sendMessage(self, content, method = "chat"):
+    return BaseProtocol.sendMessage(self, json.dumps({"data": content, "method": method}))
+
+
   def onClose(self, wasClean, code, reason):
     self.logout()
 
@@ -54,8 +58,6 @@ class BaseClient(object, BaseProtocol):
     self.logout()
     BaseProtocol.connectionLost(self, reason)
 
-  def sendMessage(self, content, method = "chat"):
-    return BaseProtocol.sendMessage(self, json.dumps({"data": content, "method": method}))
 
   def logout(self):
     if not self.logged_in: return
