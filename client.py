@@ -27,6 +27,7 @@ class Client(object):
 
   def on_close(self, ws):
     print "connection closed"
+    self.close()
 
   def on_error(self, ws, error):
     raise error
@@ -65,6 +66,7 @@ class Client(object):
   def communicate(self):
     while True:
       message = raw_input("")
+      if self.ws.sock is None: return
       self.send(message)
 
 
