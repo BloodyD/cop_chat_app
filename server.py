@@ -74,18 +74,18 @@ class Server(WebSocketServerFactory):
 
   def __init__(self, url, debug = False, debugCodePaths = False):
     WebSocketServerFactory.__init__(self, url, debug = debug, debugCodePaths = debugCodePaths)
-    self.clients = set()
+    self.handlers = set()
 
-  register = lambda self, client_handler: self.clients.add(client_handler)
-  unregister = lambda self, client_handler: self.clients.remove(client_handler)
+  register = lambda self, client_handler: self.handlers.add(client_handler)
+  unregister = lambda self, client_handler: self.handlers.remove(client_handler)
 
   def login(self, client_handler, username):
-    return username not in map(lambda handler: handler.username, self.clients)
+    return username not in map(lambda handler: handler.username, self.handlers)
 
   def chat(self, client_handler, content):
-    for client in self.clients:
-      if client_handler == client or client.username is None: continue
-      client.sendMessage("chat: %s" %(content))
+    for handler in self.handlers:
+      if client_handler == handler or handler.username is None: continue
+      handler.sendMessage("chat: %s" %(content))
 
 
 if __name__ == '__main__':
