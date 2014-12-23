@@ -40,13 +40,15 @@ class Client(object):
       if content == "OK":
         print "You have logged in as %s!" %self.username
       else:
-        print "Username %s already in use!" %self.username
+        print content
+        exit()
     elif method == "chat":
       print content.decode("utf8").encode(sys.stdout.encoding)
     else:
       print "===================="
       print "MALFORMED MESSAGE: %s" %(message)
       print "===================="
+      exit()
 
   def send(self, message):
     if self.logged_in:

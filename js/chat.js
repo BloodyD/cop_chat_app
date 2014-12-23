@@ -36,7 +36,7 @@ function connect() {
           enable_chat();
           log("You have logged in as " + $('#username').val() + "!")
         } else {
-          log(message.data);
+          log(BBC2HTML(message.data));
         }
       }
    }

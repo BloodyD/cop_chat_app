@@ -85,7 +85,7 @@ class Handler(object, WebSocketServerProtocol):
         self.sendMessage(Message.to_string("login", "OK", msg["version"]))
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
-        self.sendMessage(Message.to_string("login", "inuse", msg["version"]))
+        self.sendMessage(Message.to_string("login", "Username %s already in use!" %msg["data"], msg["version"]))
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
