@@ -37,15 +37,33 @@ def remove_html(data):
 def remove_tags(data):
   return remove_html(remove_bbcode(data))
 
+smileys = [
+  [u"\u263A", ":-)"],
+]
+
+def smileys_to_plain(data):
+  return reduce(
+    lambda data, replace: data.replace(*replace),
+    smileys,
+    data)
+
+def plain_to_smileys(data):
+  return reduce(
+    lambda data, replace: data.replace(*reversed(replace)),
+    smileys,
+    data)
+
 class Message(object):
 
+  # outgoing message
   @staticmethod
   def to_string(method, data, version = "v1"):
     if version == "v1":
-      return "%s:%s" %(method, remove_tags(data))
+      return "%s:%s" %(method, smileys_to_plain(remove_tags(data)))
     else:
-      return json.dumps({"method": method, "data": data})
+      return json.dumps({"method": method, "data": plain_to_smileys(data)})
 
+  # incoming message
   @staticmethod
   def from_string(raw_payload):
     try:
