@@ -99,7 +99,6 @@ function BBC2HTML(S) {
 
    function P($0, $1, $2, $3) {
      if ($3 && $3.indexOf('[') > -1) $3 = R($3);
-     console.log($0, $1, $2, $3);
      switch ($1) {
 
        case 'video': return '<iframe src="http://www.youtube.com/embed/' + $3 + '" width="640" height="480" frameborder="0"></iframe>'

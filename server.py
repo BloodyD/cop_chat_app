@@ -80,6 +80,9 @@ class Handler(object, WebSocketServerProtocol):
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
+  def sendMessage(self, message):
+    WebSocketServerProtocol.sendMessage(self, message.encode("utf-8"))
+
   # only for naming
   @property
   def server(self):
