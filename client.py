@@ -1,5 +1,6 @@
-import websocket, threading, time
+import websocket, threading, time, sys
 import simplejson as json
+from os.path import basename
 
 
 wsuri = "ws://127.0.0.1:9000"
@@ -41,7 +42,7 @@ class Client(object):
       else:
         print "Username %s already in use!" %self.username
     elif method == "chat":
-      print content
+      print content.decode("utf8").encode(sys.stdout.encoding)
     else:
       print "===================="
       print "MALFORMED MESSAGE: %s" %(message)
@@ -50,9 +51,6 @@ class Client(object):
   def send(self, message):
     if self.logged_in:
       self.ws.send("chat:%s"%message)
-    else:
-      self.username = message
-      self.ws.send("login:%s"%message)
 
   def close(self):
     self.ws.close()
@@ -63,19 +61,31 @@ class Client(object):
     while not self.connected:
       time.sleep(1)
 
-  def communicate(self):
+  def communicate(self, username):
+    self.username = username
+    self.ws.send("login:%s"%username)
+
     while True:
-      message = raw_input("")
+      message = raw_input("").decode(sys.stdin.encoding).encode("utf8")
       if self.ws.sock is None: return
       self.send(message)
 
 
 if __name__ == "__main__":
-    # websocket.enableTrace(True)
-    client = Client()
+  if len(sys.argv) != 2:
+    print "usage:\n\tpython %s <username>" %(basename(sys.argv[0]))
+    exit()
 
-    client.wait_until_connected()
-    try:
-      client.communicate()
-    except KeyboardInterrupt, e:
-      client.close()
+  username = sys.argv[1]
+  if not username:
+    print "please enter non empty username!"
+    exit()
+
+  # websocket.enableTrace(True)
+  client = Client()
+
+  client.wait_until_connected()
+  try:
+    client.communicate(username)
+  except KeyboardInterrupt, e:
+    client.close()

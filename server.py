@@ -21,8 +21,8 @@ import sys
 
 from twisted.internet import reactor
 from twisted.python import log
-# from twisted.web.server import Site
-# from twisted.web.static import File
+from twisted.web.server import Site
+from twisted.web.static import File
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
                           WebSocketServerProtocol,\
@@ -40,7 +40,7 @@ class Handler(object, WebSocketServerProtocol):
   def onClose(self, was_clean, code, reason):
     self.server.unregister(self)
     if self.username is not None:
-      self.server.inform(self, "User %s logged out!" %self.username)
+      self.server.chat(self, "User %s logged out!" %self.username)
       self.username = None
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
@@ -50,11 +50,11 @@ class Handler(object, WebSocketServerProtocol):
       if self.server.login(self, content):
         self.username = content
         self.sendMessage("login:OK")
-        self.server.inform(self, "User %s logged in!"%(self.username))
+        self.server.chat(self, "User %s logged in!"%(self.username))
       else:
         self.sendMessage("login:inuse")
     else:
-      self.server.chat(self, content)
+      self.server.chat(self, "%s: %s" %(self.username, content))
 
   # only for naming
   @property
@@ -82,20 +82,15 @@ class Server(WebSocketServerFactory):
   def login(self, client_handler, username):
     return username not in map(lambda handler: handler.username, self.clients)
 
-  def inform(self, client_handler, content):
-    for client in self.clients:
-      if client_handler == client: continue
-      client.sendMessage("chat: %s" %(content))
-
-
   def chat(self, client_handler, content):
-    if client_handler.username is None: return
-    self.inform(client_handler, "%s: %s" %(client_handler.username, content))
+    for client in self.clients:
+      if client_handler == client or client.username is None: continue
+      client.sendMessage("chat: %s" %(content))
 
 
 if __name__ == '__main__':
 
-  log.startLogging(sys.stdout)
+  log.startLogging(open("chat_server.log", "w"))
   debug = True
 
   server = Server("ws://localhost:9000",
@@ -106,8 +101,7 @@ if __name__ == '__main__':
   server.setProtocolOptions(allowHixie76 = True)
   listenWS(server)
 
-  # webdir = File(".")
-  # web = Site(webdir)
-  # reactor.listenTCP(8080, web)
+  web = Site(File("."))
+  reactor.listenTCP(8000, web)
 
   reactor.run()
