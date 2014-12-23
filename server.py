@@ -17,7 +17,7 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-import sys
+import sys, simplejson as json
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -28,11 +28,34 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                           WebSocketServerProtocol,\
                           listenWS
 
+
+class Message(object):
+
+  @staticmethod
+  def to_string(method, data, version = "v1"):
+    if version == "v1":
+      return "%s:%s" %(method, data)
+    else:
+      return json.dumps({"method": method, "data": data})
+
+  @staticmethod
+  def from_string(raw_payload):
+    try:
+      return json.loads(raw_payload)
+    except json.scanner.JSONDecodeError, e:
+      msg = {}
+      msg["method"], msg["data"] = raw_payload.split(":")
+      msg["version"] = "v1"
+      return msg
+
+
+
 class Handler(object, WebSocketServerProtocol):
 
   def __init__(self):
     object.__init__(self)
     self.username = None
+    self.version = None
 
   def onOpen(self):
     self.server.register(self)
@@ -45,16 +68,17 @@ class Handler(object, WebSocketServerProtocol):
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
   def onMessage(self, payload, isBinary):
-    method, content = payload.split(":")
-    if method == "login":
-      if self.server.login(self, content):
-        self.username = content
-        self.sendMessage("login:OK")
+    msg = Message.from_string(payload)
+    if msg["method"] == "login":
+      if self.server.login(self, msg["data"]):
+        self.username = msg["data"]
+        self.version = msg["version"]
+        self.sendMessage(Message.to_string("login", "OK", msg["version"]))
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
-        self.sendMessage("login:inuse")
+        self.sendMessage(Message.to_string("login", "inuse", msg["version"]))
     else:
-      self.server.chat(self, "%s: %s" %(self.username, content))
+      self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
   # only for naming
   @property
@@ -85,12 +109,13 @@ class Server(WebSocketServerFactory):
   def chat(self, client_handler, content):
     for handler in self.handlers:
       if client_handler == handler or handler.username is None: continue
-      handler.sendMessage("chat: %s" %(content))
+      handler.sendMessage(Message.to_string("chat", " %s" %(content), handler.version))
 
 
 if __name__ == '__main__':
 
-  log.startLogging(open("chat_server.log", "w"))
+  # log.startLogging(open("chat_server.log", "w"))
+  log.startLogging(sys.stdout)
   debug = True
 
   server = Server("ws://localhost:9000",

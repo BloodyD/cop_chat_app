@@ -63,12 +63,11 @@ function disable_chat(){
 };
 
 function stringify_message(data, method) {
-  return method + ":" + data;
+  return JSON.stringify({"method": method, "data": data, "version": version});
 }
 
 function build_message(raw_message) {
-  raw_message = raw_message.split(":");
-  return {"data": raw_message.slice(1, raw_message.length).join(":"), "method": raw_message[0]};
+  return JSON.parse(raw_message);
 }
 
 function send(data, method){
