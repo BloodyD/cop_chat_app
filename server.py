@@ -17,7 +17,7 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-import sys, simplejson as json
+import sys, simplejson as json, re
 
 from twisted.internet import reactor
 from twisted.python import log
@@ -28,13 +28,21 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                           WebSocketServerProtocol,\
                           listenWS
 
+def remove_bbcode(data):
+  return re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data)
+
+def remove_html(data):
+  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", data)
+
+def remove_tags(data):
+  return remove_html(remove_bbcode(data))
 
 class Message(object):
 
   @staticmethod
   def to_string(method, data, version = "v1"):
     if version == "v1":
-      return "%s:%s" %(method, data)
+      return "%s:%s" %(method, remove_tags(data))
     else:
       return json.dumps({"method": method, "data": data})
 
@@ -44,8 +52,9 @@ class Message(object):
       return json.loads(raw_payload)
     except json.scanner.JSONDecodeError, e:
       msg = {}
-      msg["method"], msg["data"] = raw_payload.split(":")
+      msg["method"], _, msg["data"] = raw_payload.partition(":")
       msg["version"] = "v1"
+      msg["data"] = remove_tags(msg["data"])
       return msg
 
 
