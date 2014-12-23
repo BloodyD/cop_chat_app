@@ -44,7 +44,7 @@ function connect() {
 
 $("#btn_chat").click(function() {
    send(get_chat_text(), "chat");
-   log(get_chat_text());
+   log(BBC2HTML(get_chat_text()));
 });
 
 $("#btn_login").click(function() {
@@ -89,7 +89,7 @@ function clear_log() {
 };
 
 
-/*
+
 function BBC2HTML(S) {
    if (S.indexOf('[') < 0) return S;
 
@@ -134,4 +134,4 @@ function BBC2HTML(S) {
    B['\\[quote(?:=([^\\]]+))?]'] = function($0, $1) {return '<div class="bb-quote">'+ ($1 ? $1 +' wrote' : 'Quote') +':<blockquote>'}; B['\\[/quote]'] = '</blockquote></div>';
    B['\\[(hr|br)]'] = '<$1 />'; B['\\[sp]'] = '&nbsp;';
    return R(A(A(S, I), B));
-}*/
+}
