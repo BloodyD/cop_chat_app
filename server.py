@@ -17,7 +17,7 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-import sys, simplejson as json, re
+import sys
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
                           WebSocketServerProtocol,\
