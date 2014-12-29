@@ -63,33 +63,30 @@ def plain_to_smileys(data):
     smileys,
     data)
 
-class Message(object):
 
-  # outgoing message
-  @staticmethod
-  def to_string(method, data, version = "v1"):
-    if version == "v1":
-      return "%s:%s" %(method, smileys_to_plain(remove_tags(data)))
-    else:
-      res = json.dumps({"method": method, "data": plain_to_smileys(data)})
-      if version == "v3":
-        return encode(res)
-      return res
+# outgoing message
+def to_string(method, data, version = "v1"):
+  if version == "v1":
+    return "%s:%s" %(method, smileys_to_plain(remove_tags(data)))
+  else:
+    res = json.dumps({"method": method, "data": plain_to_smileys(data)})
+    if version == "v3":
+      return encode(res)
+    return res
 
-  # incoming message
-  @staticmethod
-  def from_string(raw_payload):
+# incoming message
+def from_string(raw_payload):
+  try:
+    return json.loads(raw_payload)
+  except json.scanner.JSONDecodeError, e:
     try:
-      return json.loads(raw_payload)
+      return json.loads(decode(raw_payload))
     except json.scanner.JSONDecodeError, e:
-      try:
-        return json.loads(decode(raw_payload))
-      except json.scanner.JSONDecodeError, e:
-        msg = {}
-        msg["method"], _, msg["data"] = raw_payload.partition(":")
-        msg["version"] = "v1"
-        msg["data"] = remove_tags(msg["data"])
-        return msg
+      msg = {}
+      msg["method"], _, msg["data"] = raw_payload.partition(":")
+      msg["version"] = "v1"
+      msg["data"] = remove_tags(msg["data"])
+      return msg
 
 
 
@@ -111,20 +108,20 @@ class Handler(object, WebSocketServerProtocol):
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
   def onMessage(self, payload, isBinary):
-    msg = Message.from_string(payload)
+    msg = from_string(payload)
     if msg["method"] == "login":
       if self.server.login(self, msg["data"]):
         self.username = msg["data"]
         self.version = msg["version"]
-        self.sendMessage(Message.to_string("login", "OK", msg["version"]))
+        self.sendMessage(to_string("login", "OK", msg["version"]))
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
-        self.sendMessage(Message.to_string("login", "Username %s already in use!" %msg["data"], msg["version"]))
+        self.sendMessage(to_string("login", "Username %s already in use!" %msg["data"], msg["version"]))
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
   def sendMessage(self, message):
-    WebSocketServerProtocol.sendMessage(self, message.encode("utf-8"))
+    WebSocketServerProtocol.sendMessage(self, encode("utf-8"))
 
   # only for naming
   @property
@@ -155,7 +152,7 @@ class Server(WebSocketServerFactory):
   def chat(self, client_handler, content):
     for handler in self.handlers:
       if client_handler == handler or handler.username is None: continue
-      handler.sendMessage(Message.to_string("chat", " %s" %(content), handler.version))
+      handler.sendMessage(to_string("chat", " %s" %(content), handler.version))
 
 
 if __name__ == '__main__':
