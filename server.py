@@ -17,85 +17,22 @@
 ###############################################################################
 
 # original source: https://github.com/tavendo/AutobahnPython/tree/master/examples/twisted/websocket/broadcast
-import sys, simplejson as json, re, base64
-
-pwd = "COP" * 8
-
-def encode(data):
-  enc = [chr((ord(c) + ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(data)]
-  return base64.urlsafe_b64encode("".join(enc))
-
-def decode(enc):
-  dec = [chr((256 + ord(c) - ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(base64.urlsafe_b64decode(enc))]
-  return "".join(dec)
-
-from twisted.internet import reactor
-from twisted.python import log
-from twisted.web.server import Site
-from twisted.web.static import File
+import sys, simplejson as json, re
 
 from autobahn.twisted.websocket import WebSocketServerFactory, \
                           WebSocketServerProtocol,\
                           listenWS
 
-def remove_bbcode(data):
-  return re.sub(r'\[[\/\.\:\w\s=\*\#]*\]\n{0,1}', "", data)
 
-def remove_html(data):
-  return re.sub(r'<[\/=\.\:\w\s\*\#\"\'\(\)]*>\n{0,1}', "", data)
-
-def remove_tags(data):
-  return remove_html(remove_bbcode(data))
-
-smileys = [
-  [u"\u263A", ":-)"],
-]
-
-def smileys_to_plain(data):
-  return reduce(
-    lambda data, replace: data.replace(*replace),
-    smileys,
-    data)
-
-def plain_to_smileys(data):
-  return reduce(
-    lambda data, replace: data.replace(*reversed(replace)),
-    smileys,
-    data)
-
-
-# outgoing message
-def to_string(method, data, version = "v1"):
-  if version == "v1":
-    return "%s:%s" %(method, smileys_to_plain(remove_tags(data)))
-  else:
-    res = json.dumps({"method": method, "data": plain_to_smileys(data)})
-    if version == "v3":
-      return encode(res)
-    return res
-
-# incoming message
-def from_string(raw_payload):
-  try:
-    return json.loads(raw_payload)
-  except json.scanner.JSONDecodeError, e:
-    try:
-      return json.loads(decode(raw_payload))
-    except json.scanner.JSONDecodeError, e:
-      msg = {}
-      msg["method"], _, msg["data"] = raw_payload.partition(":")
-      msg["version"] = "v1"
-      msg["data"] = remove_tags(msg["data"])
-      return msg
-
-
+from cop_messaging import to_string, from_string, receive_layer_from_payload
+from contextpy import activelayer
 
 class Handler(object, WebSocketServerProtocol):
 
   def __init__(self):
     object.__init__(self)
     self.username = None
-    self.version = None
+    self.send_layer = None
 
   def onOpen(self):
     self.server.register(self)
@@ -108,20 +45,23 @@ class Handler(object, WebSocketServerProtocol):
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
   def onMessage(self, payload, isBinary):
-    msg = from_string(payload)
+    with activelayer(receive_layer_from_payload(payload)):
+      msg = from_string(payload)
     if msg["method"] == "login":
       if self.server.login(self, msg["data"]):
         self.username = msg["data"]
-        self.version = msg["version"]
-        self.sendMessage(to_string("login", "OK", msg["version"]))
+        self.send_layer = msg["send_layer"]
+        with activelayer(self.send_layer):
+          self.sendMessage(to_string("login", "OK"))
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
-        self.sendMessage(to_string("login", "Username %s already in use!" %msg["data"], msg["version"]))
+        with activelayer(msg["send_layer"]):
+          self.sendMessage(to_string("login", "Username %s already in use!" %msg["data"]))
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
   def sendMessage(self, message):
-    WebSocketServerProtocol.sendMessage(self, encode("utf-8"))
+    WebSocketServerProtocol.sendMessage(self, message.encode("utf-8"))
 
   # only for naming
   @property
@@ -152,8 +92,16 @@ class Server(WebSocketServerFactory):
   def chat(self, client_handler, content):
     for handler in self.handlers:
       if client_handler == handler or handler.username is None: continue
-      handler.sendMessage(to_string("chat", " %s" %(content), handler.version))
+      with activelayer(handler.send_layer):
+        handler.sendMessage(to_string("chat", " %s" %(content)))
 
+
+
+
+from twisted.internet import reactor
+from twisted.python import log
+from twisted.web.server import Site
+from twisted.web.static import File
 
 if __name__ == '__main__':
 
