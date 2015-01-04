@@ -32,7 +32,7 @@ class Handler(object, WebSocketServerProtocol):
   def __init__(self):
     object.__init__(self)
     self.username = None
-    self.send_layer = None
+    self.layer = None
 
   def onOpen(self):
     self.server.register(self)
@@ -45,23 +45,22 @@ class Handler(object, WebSocketServerProtocol):
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
   def onMessage(self, payload, isBinary):
-    with activelayer(receive_layer_from_payload(payload)):
+    with activelayer(self.layer or receive_layer_from_payload(payload)):
       msg = from_string(payload)
     if msg["method"] == "login":
       if self.server.login(self, msg["data"]):
         self.username = msg["data"]
-        self.send_layer = msg["send_layer"]
-        with activelayer(self.send_layer):
-          self.sendMessage(to_string("login", "OK"))
+        self.layer = msg["layer"]
+        self.sendMessage("login", "OK")
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
-        with activelayer(msg["send_layer"]):
-          self.sendMessage(to_string("login", "Username %s already in use!" %msg["data"]))
+        self.sendMessage("login", "Username %s already in use!" %msg["data"])
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
-  def sendMessage(self, message):
-    WebSocketServerProtocol.sendMessage(self, message.encode("utf-8"))
+  def sendMessage(self, method, data):
+    with activelayer(self.layer):
+      WebSocketServerProtocol.sendMessage(to_string(method, data).encode("utf-8"))
 
   # only for naming
   @property
@@ -92,8 +91,7 @@ class Server(WebSocketServerFactory):
   def chat(self, client_handler, content):
     for handler in self.handlers:
       if client_handler == handler or handler.username is None: continue
-      with activelayer(handler.send_layer):
-        handler.sendMessage(to_string("chat", " %s" %(content)))
+      handler.sendMessage("chat", " %s" %(content))
 
 
 
