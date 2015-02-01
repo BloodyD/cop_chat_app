@@ -24,15 +24,16 @@ from autobahn.twisted.websocket import WebSocketServerFactory, \
                           listenWS
 
 
-from cop_messaging import to_string, from_string, receive_layer_from_payload
-from contextpy import activelayer
+from cop_messaging import to_string, from_string, \
+  receive_layer_from_payload, encrypted as enc_layer
+from contextpy import activelayers
 
 class Handler(object, WebSocketServerProtocol):
 
   def __init__(self):
     object.__init__(self)
     self.username = None
-    self.layer = None
+    self.layers = set()
 
   def onOpen(self):
     self.server.register(self)
@@ -45,22 +46,28 @@ class Handler(object, WebSocketServerProtocol):
     print "closed a connection!(%s, %d, %s)" %(str(was_clean), code, reason)
 
   def onMessage(self, payload, isBinary):
-    with activelayer(self.layer or receive_layer_from_payload(payload)):
+    with activelayers(*list(self.layers or receive_layer_from_payload(payload))):
       msg = from_string(payload)
     if msg["method"] == "login":
       if self.server.login(self, msg["data"]):
         self.username = msg["data"]
-        self.layer = msg["layer"]
+        self.layers.add(msg["layer"])
         self.sendMessage("login", "OK")
         self.server.chat(self, "User %s logged in!"%(self.username))
       else:
         self.sendMessage("login", "Username %s already in use!" %msg["data"])
+    elif msg["method"] == "encrypt":
+      if msg["data"]:
+        self.layers.add(enc_layer)
+      else:
+        if enc_layer in self.layers:
+          self.layers.remove(enc_layer)
     else:
       self.server.chat(self, "%s: %s" %(self.username, msg["data"]))
 
   def sendMessage(self, method, data):
-    with activelayer(self.layer):
-      WebSocketServerProtocol.sendMessage(to_string(method, data).encode("utf-8"))
+    with activelayers(*list(self.layers)):
+      WebSocketServerProtocol.sendMessage(self, to_string(method, data).encode("utf-8"))
 
   # only for naming
   @property

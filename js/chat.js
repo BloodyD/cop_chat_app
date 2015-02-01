@@ -2,6 +2,8 @@
 var sock = null;
 var ellog = document.getElementById('log');
 var wsuri = "ws://localhost:9000";
+var encryption = false;
+var pwd = "COPCOPCOPCOPCOPCOPCOPCOP";
 
 $(function () {
    connect();
@@ -42,13 +44,41 @@ function connect() {
    }
 }
 
+function decrypt(data) {
+  data = (data + '===').slice(0, data.length + (data.length % 4));
+  data = atob(data.replace(/-/g, '+').replace(/_/g, '/'));
+  res = ""
+  for(var i = 0; i < data.length; i++){
+    var c1 = data.charCodeAt(i);
+    var c2 = pwd[i % pwd.length].charCodeAt(0);
+    res += String.fromCharCode((256 + c1 - c2) % 256)
+  }
+  return res
+}
+
+function encrypt(data) {
+  var enc = ""
+  for (var i = 0; i < data.length; i++) {
+    var c1 = data.charCodeAt(i);
+    var c2 = pwd[i % pwd.length].charCodeAt(0);
+    enc += String.fromCharCode(((c1 + c2) % 256))
+  };
+  return btoa(enc.replace(/\+/g, '-').replace(/\//g, '_').replace(/\=+$/, ''))
+}
+
+
 $("#btn_chat").click(function() {
    send(get_chat_text(), "chat");
    log(BBC2HTML(get_chat_text()));
 });
 
 $("#btn_login").click(function() {
-   send($('#username').val(), "login");
+  send($('#username').val(), "login");
+});
+
+$("#chk_encrypt").click(function() {
+  send($(this).is(":checked"), "encrypt");
+  encryption = $(this).is(":checked");
 });
 
 function enable_chat(){
@@ -63,19 +93,25 @@ function disable_chat(){
 };
 
 function stringify_message(data, method) {
-  return JSON.stringify({"method": method, "data": data, "version": version});
+  if(encryption)
+    return encrypt(JSON.stringify({"method": method, "data": data, "version": version}));
+  else
+    return JSON.stringify({"method": method, "data": data, "version": version});
 }
 
 function build_message(raw_message) {
-  return JSON.parse(raw_message);
+  if(encryption)
+    return JSON.parse(decrypt(raw_message));
+  else
+    return JSON.parse(raw_message);
 }
 
 function send(data, method){
-   if (sock) {
-      sock.send(stringify_message(data, method));
-   } else {
-      log("Not connected.");
-   }
+  if (sock) {
+    sock.send(stringify_message(data, method));
+  } else {
+    log("Not connected.");
+  }
 };
 
 function log(m) {
