@@ -1,16 +1,20 @@
 import websocket, threading, time, sys
-import simplejson as json
+import simplejson as json, base64
 from os.path import basename
 
 
 wsuri = "ws://127.0.0.1:9000"
 sock = None
+pwd = "COP" * 8
+
 
 
 class Client(object):
   def __init__(self):
     super(Client, self).__init__()
     self.connected = False
+    self.encrypted = False
+    self.__encrypted = False
     self.ws = websocket.WebSocketApp(wsuri,
                               on_message = self.on_message,
                               on_error = self.on_error,
@@ -34,10 +38,12 @@ class Client(object):
     raise error
 
   def on_message(self, ws, message):
+    message = self.decrypt(message)
     method, _, content = message.partition(":")
     if method == "login":
       self.logged_in = True
       if content == "OK":
+        self.encrypted = self.__encrypted
         print "You have logged in as %s!" %self.username
       else:
         print content
@@ -50,9 +56,21 @@ class Client(object):
       print "===================="
       exit()
 
+  def encrypt(self, data):
+    if self.encrypted:
+      enc = [chr((ord(c) + ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(data)]
+      return base64.urlsafe_b64encode("".join(enc))
+    else: return data
+
+  def decrypt(self, enc):
+    if self.encrypted:
+      dec = [chr((256 + ord(c) - ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(base64.urlsafe_b64decode(enc))]
+      return "".join(dec)
+    else: return enc
+
   def send(self, message):
     if self.logged_in:
-      self.ws.send("chat:%s"%message)
+      self.ws.send(self.encrypt("chat:%s"%message))
 
   def close(self):
     self.ws.close()
@@ -63,10 +81,14 @@ class Client(object):
     while not self.connected:
       time.sleep(1)
 
-  def communicate(self, username):
+  def communicate(self, username, encrypted):
     self.username = username
     self.ws.send("login:%s"%username)
 
+    if encrypted:
+      self.ws.send("encrypt:True")
+
+    self.__encrypted = encrypted
     while True:
       message = raw_input("").decode(sys.stdin.encoding).encode("utf8")
       if self.ws.sock is None: return
@@ -74,8 +96,10 @@ class Client(object):
 
 
 if __name__ == "__main__":
-  if len(sys.argv) != 2:
-    print "usage:\n\tpython %s <username>" %(basename(sys.argv[0]))
+  if len(sys.argv) < 2:
+    opt1 = "python %s <username>" %(basename(sys.argv[0]))
+    opt2 = "python %s <username> safe" %(basename(sys.argv[0]))
+    print "usage:\n\t" + opt1 + "\n\t" + opt2
     exit()
 
   username = sys.argv[1]
@@ -83,11 +107,17 @@ if __name__ == "__main__":
     print "please enter non empty username!"
     exit()
 
+  if len(sys.argv)== 3 and sys.argv[2] != "safe":
+    print "please enter either \"safe\" or nothing for encrypted communication!"
+    exit()
+
+
   # websocket.enableTrace(True)
   client = Client()
 
   client.wait_until_connected()
   try:
-    client.communicate(username)
+    encrypted = len(sys.argv) == 3
+    client.communicate(username, encrypted)
   except KeyboardInterrupt, e:
     client.close()

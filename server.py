@@ -57,7 +57,7 @@ class Handler(object, WebSocketServerProtocol):
       else:
         self.sendMessage("login", "Username %s already in use!" %msg["data"])
     elif msg["method"] == "encrypt":
-      if msg["data"]:
+      if str(msg["data"]).lower() == "true":
         self.layers.add(enc_layer)
       else:
         if enc_layer in self.layers:
