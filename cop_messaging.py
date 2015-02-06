@@ -32,7 +32,6 @@ def encrypt(data):
 
 @around(encrypted)
 def encrypt(data):
-  print "ENCRYPTING"
   enc = [chr((ord(c) + ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(data)]
   return base64.urlsafe_b64encode("".join(enc))
 
@@ -42,7 +41,6 @@ def decrypt(enc):
 
 @around(encrypted)
 def decrypt(enc):
-  print "DECRYPTING"
   dec = [chr((256 + ord(c) - ord(pwd[i % len(pwd)])) % 256) for i, c in enumerate(base64.urlsafe_b64decode(enc))]
   return "".join(dec)
 
